@@ -2,10 +2,10 @@
 
 # Contribution 1: Instance uniform is stuck using color even after removing source_color hint
 
-**Contribution Number:** 1
-**Student:** Andy Cheng
-**Issue:** https://github.com/godotengine/godot/issues/119973
-**Status:** Phase I | Complete
+**Contribution Number:** 1  
+**Student:** Andy Cheng  
+**Issue:** https://github.com/godotengine/godot/issues/119973  
+**Status:** Phase I Complete
 
 ---
 
