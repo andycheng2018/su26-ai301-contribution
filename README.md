@@ -1,17 +1,17 @@
 # su26-ai301-contribution
 
-# Contribution [#]: [Issue Title]
+# Contribution 1: Instance uniform is stuck using color even after removing source_color hint
 
-**Contribution Number:** [1 / 2 / 3]  
-**Student:** [Your Name]  
-**Issue:** [GitHub issue link]  
-**Status:** [Phase I / Phase II / Phase III / Phase IV] [In Progress / Complete]
+**Contribution Number:** 1
+**Student:** Andy Cheng
+**Issue:** https://github.com/godotengine/godot/issues/119973
+**Status:** Phase I | Complete
 
 ---
 
 ## Why I Chose This Issue
 
-[1-2 paragraphs explaining why this issue interests you, how it matches your skills/learning goals, what you hope to learn]
+I chose this issue because I use Godot myself to make games in my free time and wanted to contribute to an open-source project that I care about. This bug is related to Godot's shader behavior, which is something I'd like to learn more about by attempting to fix this bug. This issue felt like it was challenging but also realistic. I was able to replicate the bug myself and I hope to learn more about how Godot stores shader parameters and how the editor updates inspector values.
 
 ---
 
