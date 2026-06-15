@@ -83,6 +83,12 @@ Edit the shader and remove the source_color hint, so the line becomes: instance 
 
 Using UMPIRE framework (adapted):
 
+- Locate the uniform type resolution code — find where the editor inspector determines which editing widget to show for shader instance uniforms (likely in scene/resources/shader.cpp, editor/plugins/shader_editor_plugin.cpp, or the material property inspector)
+- Identify where the cached/stored variant type wins over the shader's declared type — the bug is that on shader reload, the stored scene value's type (Color) is being used to pick the widget instead of the newly parsed shader parameter type (vec3 without hint)
+- Force widget refresh on shader recompile — when a shader is modified and reloaded, instance uniform editor widgets should be invalidated and re-created based on the current shader parameter declarations, not the type of the previously stored value
+- Handle type mismatch between stored value and shader declaration — if the stored variant type no longer matches the shader uniform's type/hint, either discard the stored value, convert it, or warn the user, rather than silently using the wrong widget
+- Test: confirm that after removing source_color, saving, and reopening the Inspector, the uniform shows a Vector3 input and that reverting the value works correctly
+
 **Understand:** [Restate the problem]
 
 **Match:** [What similar patterns/solutions exist in the codebase?]
