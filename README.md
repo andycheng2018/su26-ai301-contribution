@@ -39,20 +39,34 @@ I chose this issue because I use Godot myself to make games in my free time and 
 
 ### Environment Setup
 
-[Notes on setting up your local development environment - challenges you faced, how you solved them]
+- Godot 4.7 beta4
+- Downloaded the editor from the official Godot website
+- No special dependencies needed
 
 ### Steps to Reproduce
 
-1. [Step 1]
-2. [Step 2]
-3. [Observed result]
+1. Open Godot 4.7 beta4 and create a new 2D project
+2. Add a ColorRect node to the scene
+3. Create a new ShaderMaterial on the ColorRect and paste in the following shader:
+
+shader_type canvas_item;
+
+instance uniform vec3 color : source_color;
+
+void fragment() {
+    COLOR.rgb = color;
+}
+   
+5. In the Inspector, expand the shader parameters and assign a color value to the color instance uniform — use something like #3a504d so the sRGB ↔ Linear conversion is visibly affected
+Edit the shader and remove the source_color hint, so the line becomes: instance uniform vec3 color;
+6. Save the shader — observe that the uniform editor in the Inspector still shows a Color picker instead of switching to a Vector3 input
+7. Try to revert or re-enter a value — the Color-converted value persists; the only workarounds are pasting a raw Vector3/4 value or manually editing the .tscn file to remove the stored value
 
 ### Reproduction Evidence
 
-- **Commit showing reproduction:** [Link to commit in your fork]
-- **Screenshots/logs:** [If applicable]
-- **My findings:** [What you discovered during reproduction]
-
+- **Commit showing reproduction:** https://github.com/andycheng2018/godot
+- **Screenshots/logs:** See video in here: https://github.com/godotengine/godot/issues/119973 
+- **My findings:** The root cause appears to be that Godot caches the declared type hint used when the Color value was first assigned, and stores it in the scene file (.tscn). When the shader is reloaded without source_color, the editor reads the stored Color variant from the scene instead of re-inferring the type from the updated shader, so it keeps rendering the Color widget. The scene data overrides the shader's current declaration.
 ---
 
 ## Solution Approach
