@@ -6,7 +6,7 @@
 **Project:** collective/icalendar  
 **Issue:** https://github.com/collective/icalendar/issues/1473  
 **Pull Request:** https://github.com/collective/icalendar/pull/1503  
-**Status:** Phase III Complete  
+**Status:** Phase IV Complete  
 
 ---
 
