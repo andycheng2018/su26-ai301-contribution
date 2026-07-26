@@ -6,59 +6,52 @@
 **Project:** collective/icalendar  
 **Issue:** https://github.com/collective/icalendar/issues/1473  
 **Pull Request:** https://github.com/collective/icalendar/pull/1503  
-**Status:** Phase IV Complete — revised after review  
+**Status:** Phase IV Complete — revised after second round of review  
 
 ---
 
 ## Why I Chose This Issue
 
-My first contribution attempt was a Godot shader bug (#119973): an instance uniform
-that stayed stuck as a Color type after the `source_color` hint was removed. I chose
-it because I use Godot to make games and wanted to contribute to a project I care
-about. About two weeks ago I was able to reproduce the bug on a local build, which
-was encouraging.
+My first attempt was a Godot shader bug (#119973) — an instance uniform that got
+stuck as a Color type after the `source_color` hint was removed. I picked it
+because I use Godot for my own projects. I reproduced it once on a local build,
+which felt promising.
 
-When I came back to actually fix it, I couldn't reproduce it anymore. I rebuilt from
-current `master`, followed the exact repro steps, and the bug no longer occurred —
-the value reset correctly and stored as the right type. After confirming I was on
-up-to-date master, my best read is that it was fixed (or fixed indirectly) in the
-time since I first looked at it. Without a reproducible failure I had no reliable way
-to verify a fix, which made continuing impractical.
+When I came back to actually fix it, I couldn't reproduce it anymore. I rebuilt
+from current `master`, followed the same steps, and the bug was gone. My best
+guess is it got fixed some other way in the meantime. Without something broken in
+front of me, I had no way to prove a fix actually worked, so I dropped it.
 
-Two other things made me reconsider Godot as a first contribution. The codebase is
-very large and the C++ build/setup was a significant effort just to reach a working
-baseline. And it isn't especially first-contributor friendly — there was no clear
-good-first-issue path, and the issue I'd picked was deeper and more
-environment-dependent than I'd judged. I underestimated what I could take on for a
-first contribution and how much I'd be working without guardrails.
+Godot also turned out to be a lot for a first contribution — huge codebase, a real
+C++ build to set up, and no clear "start here" path for a beginner. I picked
+something bigger than I could actually finish.
 
-So I changed strategy: instead of choosing an issue because I liked the project, I
-looked for an issue with the properties that make a first contribution actually
-finishable. I landed on icalendar #1473 because it was explicitly labeled "good first
-issue," the project had a clear and welcoming contributor guide, it was in Python (a
-language I know), and it was verifiable by inspection and against a spec (RFC 5545)
-rather than requiring a fragile runtime reproduction. Changing *how* I selected an
-issue, more than the fix itself, was the main thing I took from this phase.
+So I switched approach: instead of picking a project I liked, I looked for an
+issue that was actually finishable. icalendar #1473 fit — labeled "good first
+issue," a real contributor guide, Python (which I know), and something I could
+verify just by reading the code and checking it against RFC 5545, no flaky repro
+needed. That change in how I picked an issue mattered more than the fix itself.
 
 ---
 
 ## Understanding the Issue
 
 ### Problem Description
-The `new()` classmethods on several iCalendar component classes were generated from a
-shared pattern. For the `FreeBusy` class, the docstring summary was copied verbatim
-from the `Alarm` class and never corrected, so it described `FreeBusy.new()` as
-creating "a new alarm."
+`FreeBusy.new()`'s docstring was clearly copy-pasted from `Alarm`'s and never
+updated — it described creating "a new alarm" when it should describe a free/busy
+(VFREEBUSY) component.
 
 ### Expected Behavior
-The `FreeBusy.new()` docstring should describe creating a free/busy (VFREEBUSY)
-component, and its property documentation should align with both the Python
-implementation and RFC 5545 — and its wording/structure should be consistent with
-the `new()` docstrings on sibling classes (`Event`, `Alarm`, `Todo`, `Journal`).
+The docstring should actually describe a free/busy component, match the real
+implementation and RFC 5545, and use the same wording style as the other `new()`
+methods in the codebase (`Event`, `Alarm`, `Todo`, `Journal`).
 
 ### Current Behavior
-The docstring read: "Create a new alarm with all required properties. This creates a
-new Alarm in accordance with RFC 5545." — incorrect for the FreeBusy class.
+It read: "Create a new alarm with all required properties. This creates a new
+Alarm in accordance with RFC 5545." Wrong class entirely. After my first round of
+fixes this got corrected, but every parameter still said "of the component"
+instead of naming the free/busy specifically — which didn't match how, say,
+`Event.new()` says "of the event" for its own parameters.
 
 ### Affected Components
 - `src/icalendar/cal/free_busy.py` — the `FreeBusy.new()` docstring.
@@ -69,144 +62,157 @@ new Alarm in accordance with RFC 5545." — incorrect for the FreeBusy class.
 
 ### Environment Setup
 - Forked and cloned collective/icalendar
-- Installed locally with `python -m pip install -e .`, plus `pytest` and `hypothesis`
+- `python -m pip install -e .`, plus `pytest` and `hypothesis`
 - macOS, Python 3.13
 
-### How the Issue Was Confirmed
-This is a documentation-accuracy issue, confirmed by code inspection rather than a
-runtime reproduction:
-1. Read the `FreeBusy.new()` docstring in `src/icalendar/cal/free_busy.py`.
-2. Confirmed the summary referenced "alarm"/"Alarm" — wrong for this class.
-3. Opened `src/icalendar/cal/alarm.py` and confirmed the identical summary text
-   appears there (correctly), establishing the copy-paste origin.
-4. Cross-checked the VFREEBUSY property structure against RFC 5545 §3.6.4.
+### How I Confirmed the Bug
+No runtime repro needed here, just reading code:
+1. Read `FreeBusy.new()`'s docstring — saw "alarm"/"Alarm" in it.
+2. Opened `alarm.py` and found the exact same phrasing there, correctly. That's
+   how I knew it was a copy-paste.
+3. Checked the VFREEBUSY property list against RFC 5545 §3.6.4.
+4. Second round: pulled up `Event.new()`'s full docstring and went through it
+   line by line against `FreeBusy.new()`'s to find exactly what didn't match.
 
-### Evidence / Findings
-- The `FreeBusy` and `Alarm` `new()` docstrings shared identical summary lines —
-  correct for Alarm, incorrect for FreeBusy — which is the signature of a copy-paste.
-- RFC 5545 §3.6.4 defines VFREEBUSY as REQUIRED: dtstamp, uid; OPTIONAL once: contact,
-  dtstart, dtend, organizer, url; OPTIONAL multiple: attendee, comment, freebusy, rstatus.
-- The class's `required`, `singletons`, and `multiple` tuples already matched the RFC
-  exactly, so the implementation was correct and only the docstring text was wrong.
+### What I Found
+- `FreeBusy` and `Alarm` had identical `new()` summary lines. Correct for Alarm,
+  wrong for FreeBusy.
+- RFC 5545 §3.6.4 says VFREEBUSY requires dtstamp and uid, and optionally allows
+  contact, dtstart, dtend, organizer, url (once each) plus attendee, comment,
+  freebusy, rstatus (multiple times). The class's `required`/`singletons`/
+  `multiple` tuples already matched this exactly — so the actual code was fine,
+  only the docstring text was wrong.
+- Second round: `Event.new()` says "of the event" for every single parameter, and
+  `Todo.new()` says "of the todo" for every parameter. My first revision of
+  `FreeBusy.new()` still said "of the component" everywhere — a generic leftover
+  from whatever template it was built from. That's the actual naming issue
+  niccokunzmann was pointing at, separate from the alarm/free-busy wording fix.
 
 ---
 
 ## Solution Approach
 
-### Analysis
-Root cause: the `new()` method skeleton was copied from `Alarm` into `FreeBusy`
-without updating the docstring summary. There is no behavioral defect — purely a
-documentation inaccuracy that surfaces in the rendered API reference.
+### What I Did
+1. Fixed the summary lines to actually describe a free/busy component, using the
+   same two-sentence structure as `Event.new()` (a summary sentence, then a
+   separate sentence citing the RFC).
+2. Replaced every "of the component" in the parameter list with "of the
+   free/busy," to match how `Event.new()` says "of the event."
+3. Fixed the `Raises:` line to use the proper `:exc:` role
+   (`:exc:`~icalendar.error.InvalidCalendar`` instead of a plain, non-linked
+   `~error.InvalidCalendar`), matching what sibling classes do.
 
-### Proposed Solution
-Correct the two summary lines of the `FreeBusy.new()` docstring to reference the
-free/busy component instead of an alarm, and match the two-sentence structure used
-by other `new()` methods in the codebase (e.g. `Event.new()`: a summary line, then
-a separate line citing the RFC).
-
-### Implementation Plan
-1. Edit the `FreeBusy.new()` docstring summary in `src/icalendar/cal/free_busy.py`.
-2. Add a changelog entry under `news/` (the project uses towncrier).
-3. Run the full test suite to confirm no regressions.
-4. Open a pull request referencing #1473.
-5. **(Added after review)** Revise the docstring again based on reviewer feedback:
-   compare against sibling classes' `new()` docstrings for consistent structure and
-   fix a formatting error introduced in the first revision.
+### Steps
+1. Edit the docstring in `free_busy.py`.
+2. Add a changelog entry under `news/` (towncrier).
+3. Run the test suite.
+4. Open the PR against #1473.
+5. Round 1 revision: simplify wording, link the specific RFC section, per
+   stevepiercy's suggestion.
+6. Round 2 revision: go through every parameter and fix "of the component" →
+   "of the free/busy," and fix the `Raises:` formatting.
 
 ---
 
 ## Testing Strategy
 
 ### Unit Tests
-N/A — this is a documentation-only correction with no behavioral change, so there is
-no logic to unit-test. This was noted explicitly in the PR rather than adding a sham test.
+None needed — this is a docstring-only change, no behavior changed. Said so
+directly in the PR instead of padding it with a fake test.
 
-### Validation Performed
-- Ran the full suite: `python -m pytest` → 9,982 passed, 735 skipped.
-- The only initial failure was a missing optional `hypothesis` dependency in an
-  unrelated fuzzing test; resolved with `pip install hypothesis`.
-- Confirmed the docstring's doctest example (`FreeBusy.new()`) is exercised through the
-  project's docs build (Sphinx), not the pytest suite, and that the prose-only change
-  does not alter the `>>>` example block.
-- Verified the final diff was exactly the intended summary lines via `git diff`.
-- After revision, re-ran the full suite again to confirm the second docstring edit
-  introduced no regressions.
+### What I Actually Checked
+- Full suite: `python -m pytest` → 9,982 passed, 735 skipped.
+- One failure at first from a missing `hypothesis` dependency, unrelated to my
+  change — fixed with `pip install hypothesis`.
+- Confirmed the `>>>` doctest example in the docstring wasn't touched by the
+  wording changes.
+- Checked every diff with `git diff` before committing — including catching a
+  case where I'd dropped the blank lines between docstring sections and had to
+  add them back by hand.
+- Re-ran the full suite after each revision.
 
 ---
 
 ## Implementation Notes
 
 ### Summary of Work
-Corrected the `FreeBusy.new()` docstring in `src/icalendar/cal/free_busy.py`, which
-described the method as creating an alarm (copy-pasted from the `Alarm` class) instead
-of a free/busy component. Verified the VFREEBUSY property structure against RFC 5545
-§3.6.4 and confirmed the implementation already matched the spec, so only the docstring
-summary text needed correcting. Added a changelog entry and opened a pull request.
+Fixed `FreeBusy.new()`'s docstring over two rounds of review. Round one fixed the
+actual bug (wrong component name, missing RFC section link). Round two fixed a
+naming inconsistency — every parameter said "of the component" instead of naming
+the free/busy specifically, unlike how `Event.new()` and `Todo.new()` do it. Also
+fixed a small Sphinx formatting issue in the `Raises:` line.
 
 ### Code Changes
-- **Files modified:** `src/icalendar/cal/free_busy.py` (docstring summary);
-  `news/1473.documentation` (changelog entry, added).
+- **Files touched:** `src/icalendar/cal/free_busy.py` (docstring),
+  `news/1473.documentation` (changelog).
 - **Branch:** https://github.com/andycheng2018/icalendar/tree/fix-freebusy-docstring
-- **Key commits:** 1b87bc4 (initial fix), plus a follow-up commit revising the
-  docstring per review feedback.
-- **Approach decision:** Kept the diff minimal (summary lines only). Left the generic
-  "of the component" parameter wording unchanged so the change stayed obviously correct
-  and easy to review; noted it as a possible follow-up.
+- **Commits:**
+  - 1b87bc4 — initial fix (alarm → free/busy, RFC section link)
+  - follow-up — restructured to match `Event.new()`'s summary/RFC-line format,
+    fixed a stray extra quote I introduced while pasting a suggested edit
+  - final — swapped "of the component" for "of the free/busy" everywhere, fixed
+    the `Raises:` line
+- Kept each revision as its own small commit so reviewers could see exactly what
+  changed in response to their specific comments, instead of one big rewrite.
 
-### Revision After Review
-Two reviewers (stevepiercy, niccokunzmann) left feedback on the initial PR:
-- stevepiercy suggested simplifying the summary and linking to the specific RFC
-  section (`:rfc:`5545#section-3.6.4`` rather than a bare `:rfc:`5545``).
-- niccokunzmann asked that the fix be checked against how sibling classes document
-  their `new()` methods, rather than edited in isolation, and asked that AI not be
-  used for the fix itself.
+### Round 1 Feedback
+stevepiercy suggested simpler wording and a link to the exact RFC section
+(`:rfc:`5545#section-3.6.4`` instead of a bare `:rfc:`5545``). niccokunzmann asked
+me to actually check how sibling classes name things instead of editing this one
+in isolation, and asked that I not use AI for the fix.
 
-In applying the first suggested edit, I introduced a stray leading quotation mark
-in the docstring (`""""Create a new FreeBusy...` instead of `"""Create a new
-FreeBusy...`), which I caught and fixed before pushing. I then compared the
-docstring against `Event.new()` in `src/icalendar/cal/event.py` and restructured
-`FreeBusy.new()`'s docstring to match its convention: a summary sentence, a blank
-line, then a sentence citing the RFC — while keeping stevepiercy's more specific
-section anchor (`#section-3.6.4`), which is more precise than what `Event.new()`
-uses and worth flagging to reviewers as an intentional, justified difference rather
-than an inconsistency.
+While applying stevepiercy's suggested edit I accidentally left in an extra
+leading quote (`""""Create a new FreeBusy...`), which I caught and fixed before
+pushing.
+
+### Round 2 Feedback
+stevepiercy approved the docstring/changelog after round one, but flagged that
+niccokunzmann's naming point was still unresolved. I went back, pulled up
+`Event.new()`'s actual docstring from `event.py`, and went through it parameter by
+parameter against mine. Every one of mine said "of the component"; theirs said "of
+the event." I fixed that everywhere, and separately fixed the `Raises:` line,
+which was missing the `:exc:` role other classes use.
+
+I also ran into a git snag here — after editing the file, `git commit` told me
+"nothing to commit," which turned out to mean I hadn't actually saved the file
+yet. Once I confirmed a real diff with `git diff`, I committed, then had to `git
+pull` before pushing because the remote branch had moved ahead (an unrelated
+merge from `main`).
 
 ---
 
 ## Pull Request
 
 **PR Link:** https://github.com/collective/icalendar/pull/1503  
-**Status:** Revised, awaiting re-review  
+**Status:** Revised twice, waiting on re-review  
 **Maintainer Feedback:**  
-- stevepiercy (changes requested): suggested simplified wording and a specific RFC
-  section link. Incorporated, with the section link kept as suggested.
-- niccokunzmann (comment): asked that the fix not rely on AI, and that the sibling
-  classes' docstrings be reviewed for a consistent naming/wording convention before
-  editing this one. Addressed by manually reading `alarm.py`, `event.py`, `todo.py`,
-  and `journal.py` and aligning `FreeBusy.new()`'s structure to `Event.new()`'s
-  pattern.
-- 2 requested changes / 2 pending reviews as of this revision; all checks passing;
-  branch was out of date with base and has since been updated.
+- stevepiercy: suggested wording + RFC section link, approved after round one,
+  but flagged the naming point was still open.
+- niccokunzmann: wanted the fix checked against sibling classes' naming
+  conventions and asked that I not use AI. Addressed by fixing "of the component"
+  → "of the free/busy" throughout, matching `Event.new()` / `Todo.new()`.
+- All CI checks (tests on Python 3.10–3.13, docs build, news fragment lint)
+  passing as of the latest push.
 
 ---
 
 ## Learnings & Reflections
 
-- A one-line "fix the wrong word" change still needs to be checked against the
-  conventions of the surrounding codebase, not just corrected in isolation — the
-  reviewer feedback on this PR was really about consistency, not just correctness.
-- Applying a reviewer's suggested diff verbatim without re-reading it introduced a
-  small syntax error (an extra leading quote). Suggested changes in review UIs are
-  a starting point, not something to accept blindly — I still needed to proofread
-  what I pasted in.
-- Getting direct, blunt feedback ("please do not use AI for this") was a useful
-  signal to be more transparent about exactly *how* I used AI assistance, rather
-  than leaving it as a general disclosure line. I've noted below what I changed as
-  a result.
-- Comparing `free_busy.py` against `event.py` line-by-line was more useful than I
-  expected — the existing `Event.new()` docstring was effectively the "correct"
-  version of what `FreeBusy.new()` should have looked like all along, before the
-  copy-paste bug was introduced.
+- A tiny wording fix still has to be checked against the rest of the codebase, not
+  just corrected on its own. It took me two rounds to actually spot the real
+  inconsistency — generic "component" wording vs. how other classes name things
+  explicitly.
+- Don't paste a suggested diff without reading it back. I introduced a stray quote
+  doing exactly that.
+- "Nothing to commit" doesn't always mean your change is already saved — it can
+  also mean your edit never made it to disk. Always double-check with `git diff`
+  before trusting a commit.
+- Blunt feedback like "please don't use AI for this" was actually useful — it
+  pushed me to be more specific about what I did myself vs. what I used help with,
+  instead of a vague disclosure line.
+- Comparing against `event.py` and `todo.py` line by line was more useful than I
+  expected. Their docstrings were basically the "answer key" for what mine should
+  have looked like from the start.
 
 ---
 
@@ -214,4 +220,5 @@ than an inconsistency.
 - RFC 5545 §3.6.4 (Free/Busy Component): https://datatracker.ietf.org/doc/html/rfc5545#section-3.6.4
 - icalendar contributor guide: https://icalendar.readthedocs.io/en/stable/contribute/index.html
 - icalendar development setup: https://icalendar.readthedocs.io/en/stable/contribute/development.html
-- `src/icalendar/cal/event.py` — used as the reference convention for `new()` docstring structure.
+- `src/icalendar/cal/event.py` and `src/icalendar/cal/todo.py` — used to check the
+  actual convention for `new()` docstrings.
